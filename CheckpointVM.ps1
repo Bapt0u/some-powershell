@@ -22,17 +22,17 @@ Process {
             # Loop on all checkpoint on the VM 
             for ($i = 0; $i -lt $VMCheckpoint.Count; $i++) {
 
-                # Test if the snapshot is older than 5 days
+                # Test if the snapshot is older than $LimitDate days
                 if ($VMCheckpoint[$i].CreationTime -lt (Get-Date).AddDays(-$LimitDate)) {
 
                     # Add it to the ListCheckpointinfo object
-                    $fuckit = New-Object -TypeName CheckpointInfo -Property @{
+                    $CheckpointInfo = New-Object -TypeName CheckpointInfo -Property @{
                         SnapName     = $VMCheckpoint[$i].Name
                         CreationTime = $VMCheckpoint[$i].CreationTime
                         AttachedVM   = $VMName
                     }
     
-                    $ListCheckpointInfo.Add($fuckit) | Out-Null
+                    $ListCheckpointInfo.Add($CheckpointInfo) | Out-Null
                 }  
             }
         }
