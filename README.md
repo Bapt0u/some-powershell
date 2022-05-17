@@ -1,4 +1,4 @@
-# Some PowerShell script about Hyper V
+# Some PowerShell scripts about Hyper V
 
 *In progress*
 
