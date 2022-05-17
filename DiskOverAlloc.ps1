@@ -11,7 +11,7 @@ Aucune input pour le moment
 .OUTPUTS
 [Collections.Generic.List[OverAllocationInfo]] Retourne un tableau de données sous le format :
 
-PS > .\DiskSuralloc.ps1
+PS > .\DiskOveAlloc.ps1
 
 DriveLetter DriveTotalSpace DriveUsedSpace IsOverAllocated
 ----------- --------------- -------------- ---------------
@@ -20,7 +20,7 @@ C:              42303746048   164179705856            True
 A noter que DriveTotalSpace et DriveUsedSpace sont en Byte. 
 
 .EXAMPLE
-PS> Check-WMINamespace -ComputerName "Computer01"  -Namespace "NameSpace01", "NameSpace02"
+PS> DiskOverAlloc.ps1
 
 DriveLetter DriveTotalSpace DriveUsedSpace IsOverAllocated
 ----------- --------------- -------------- ---------------
