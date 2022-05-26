@@ -68,11 +68,11 @@ Function Check-WMINameSpace {
 
     Param 
     ( 
-        [parameter(Mandatory = $false, ValuefromPipeline = $True)]
+        [parameter(Mandatory = $FALSE, ValuefromPipeline = $True)]
         [string[]]$ComputerName = "localhost",
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory = $TRUE)]
         [string[]]$NameSpace,
-        [parameter(Mandatory = $false)]
+        [parameter(Mandatory = $FALSE)]
         [System.Management.Automation.PSCredential]$Credentials
     )
     Begin {
@@ -88,7 +88,7 @@ Function Check-WMINameSpace {
             foreach ($_Namespace in $NameSpace) {
                 # Variables => Declaration
                 ## Variables => $_Return : Definition du booleen en cas de non retour
-                $_Return = $false
+                $_Return = $FALSE
                 
                 try { 
                     # Condition => En cas de presence de l'entrée $Credentials

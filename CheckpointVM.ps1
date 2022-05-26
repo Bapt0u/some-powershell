@@ -36,7 +36,7 @@ Online version: http://gitlab.infocheops.local/microsoft
 
 Param 
 ( 
-    [parameter(Mandatory = $false)]
+    [parameter(Mandatory = $FALSE)]
     [int]$LimitDate = 5
 )
 Begin {
