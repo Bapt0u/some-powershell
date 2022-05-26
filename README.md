@@ -15,4 +15,5 @@ DiskOverAlloc.ps1 is usefull in case you configure your disks in dynamic. It wil
 Check whether a kb is installed. As I didn't really understand where to query all installed updates, this script check two WMI class: 
 - Win32_reliabilityRecords
 - Win32_QuickFixEngineering  
+
 It might be slower but you can trust the result. Moreover, it always be faster than to check manually in the control panel, at least I hope.  
