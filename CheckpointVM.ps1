@@ -37,8 +37,14 @@ Online version: http://gitlab.infocheops.local/microsoft
 Param 
 ( 
     [parameter(Mandatory = $FALSE)]
-    [int]$LimitDate = 5
+    [int]$LimitDate = 5,
+    [string]$VERSION = "V1.0",
+    [int]$returnStateOK = 0,
+    [int]$returnStateWarning = 1,
+    [int]$returnStateCritical = 2,
+    [int]$returnStateUnknown = 3
 )
+
 Begin {
     $VMList = (Get-VM).Name
 
@@ -76,5 +82,20 @@ Process {
 }
 
 End {
-    $ListCheckpointInfo
+    $nb = $ListCheckpointInfo.Count
+
+    if ($nb -eq 0) {
+        Write-Output "[$VERSION] OK"
+        exit $returnStateOK
+    } elseif ($nb -eq 1) {
+        Write-Output "[$VERSION] $nb snapshot is above the limit of $LimitDate days on $($ListCheckpointInfo.AttachedVM)"
+        exit $returnStateCritical
+
+    }elseif ($nb -ge 2) {
+        Write-Output "[$VERSION] $nb snapshots are above the limit of $LimitDate days on the following VMs: "
+        foreach ($vm in ($ListCheckpointInfo | Select-Object -Unique -Property AttachedVM)) {
+            Write-Output $vm.AttachedVM
+        }
+        exit $returnStateCritical
+    }
 }
