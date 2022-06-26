@@ -63,6 +63,9 @@ Process {
 
     # Get drives info (Mount Letter, Total Space, Used Space)
     $ListLogicalDisk = Get-WmiObject -Namespace Root/CimV2 -Class Win32_LogicalDisk
+
+    # Get-ClusterSharedVolume |Select -Property Name,SharedVolumeInfo
+
     foreach ($LogicalDisk in $ListLogicalDisk) {
         $OverAllocationInfoo = New-Object -TypeName OverAllocationInfo -Property @{
             DriveLetter     = $LogicalDisk.DeviceID
