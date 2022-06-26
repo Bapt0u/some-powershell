@@ -34,7 +34,12 @@ Online version: http://gitlab.infocheops.local/microsoft
 Param 
 ( 
     [parameter(Mandatory = $FALSE)]
-    [int]$MaxThreshold = 1
+    [int]$MaxThreshold = 1,
+    [int]$returnStateOK = 0,
+    [int]$returnStateWarning = 1,
+    [int]$returnStateCritical = 2,
+    [int]$returnStateUnknown = 3,
+    $WarningThreshold = 0.8
 )
 
 Begin {
@@ -45,9 +50,12 @@ Begin {
         [System.UInt64]$DriveTotalSpace
         [System.UInt64]$DriveUsedSpace
         [bool]$IsOverAllocated
+        [bool]$WarningOverAllocated
     }
     
     $ListOverAllocationInfo = New-Object System.Collections.ArrayList
+
+    $Version = "V1.0"
     
 }
 
@@ -61,6 +69,7 @@ Process {
             DriveTotalSpace = $LogicalDisk.Size
             DriveUsedSpace  = $LogicalDisk.Size - $LogicalDisk.FreeSpace
             IsOverAllocated = $FALSE
+            WarningOverAllocated = $FALSE
         }
         $ListOverAllocationInfo.Add($OverAllocationInfoo) | Out-Null
     }
@@ -79,6 +88,8 @@ Process {
                     $ListOverAllocationInfo[$i].DriveUsedSpace += $VHDInfo.Size
                     if ($ListOverAllocationInfo[$i].DriveUsedSpace -gt $ListOverAllocationInfo[$i].DriveTotalSpace) {
                         $ListOverAllocationInfo[$i].IsOverAllocated = $TRUE
+                    } elseif ($ListOverAllocationInfo[$i].DriveUsedSpace -gt ($ListOverAllocationInfo[$i].DriveTotalSpace*$WarningThreshold)) {
+                        $ListOverAllocationInfo[$i].WarningOverAllocated = $TRUE
                     }
                     break
                 }
@@ -90,5 +101,20 @@ Process {
 }
 
 End {
-    $ListOverAllocationInfo | Where-Object { $_.IsOverAllocated -eq $TRUE }
+    $CriticalDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.IsOverAllocated -eq $TRUE }
+    $WarningDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.WarningOverAllocated -eq $TRUE -and  $_.IsOverAllocated -ne $TRUE }
+    Write-Output -NoNewline "[$Version]"
+    if ($CriticalDrives -and $WarningDrives ) {
+        Write-Output "Critical overallocation space disk on $($CriticalDrives.DriveLetter)"
+        Write-Output "Warning overallocation space disk on $($WarningDrives.DriveLetter)"
+        exit $returnStateCritical
+    } 
+    if ($WarningDrives) {
+        Write-Output "Warning overallocation space disk on $($WarningDrives.DriveLetter)"
+        exit $returnStateWarning
+    }
+    if (!$WarningDrives -and !$CriticalDrives) {
+        Write-Output "Ok"
+        exit $returnStateOK
+    }
 }
