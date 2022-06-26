@@ -44,6 +44,7 @@
 #>
 #Requires -Modules Hyper-V
 #Requires -Version 3.0
+
 [CmdletBinding()]
 Param
 (
@@ -60,6 +61,7 @@ Param
 )
 
 Begin {
+    [string]$VERSION = "V1.0"
 }
 
 Process {
@@ -73,7 +75,7 @@ Process {
         }
     }
     catch {
-        Write-Output "Hyper-V Replica Status is Unknown.|" ; exit $returnStateUnknown
+        Write-Output "[$VERSION] Hyper-V Replica Status is Unknown.|" ; exit $returnStateUnknown
     }
     if ($VMs) {
         # If we have VMs with repliation issues then we need to report their status.
@@ -82,23 +84,23 @@ Process {
         if ($CriticalVMs -and $WarningVMs) {
             $CriticalVMsDetails = $CriticalVMs | ForEach-Object { Measure-VMReplication -VMName $_.Name -ComputerName $ComputerName }
             $WarningVMsDetails = $WarningVMs | ForEach-Object { Measure-VMReplication -VMName $_.Name -ComputerName $ComputerName }
-            Write-Output "Hyper-V Replica Health is critical for $($CriticalVMsDeatails.Name) and warning for $($WarningVMsDetails.Name). $($CriticalVMsDetails.ReplicationHealthDetails) $($WarningVMsDetails.ReplicationHealthDetails) |" ; exit $returnStateCritical
+            Write-Output "[$VERSION] Hyper-V Replica Health is critical for $($CriticalVMsDeatails.Name) and warning for $($WarningVMsDetails.Name). $($CriticalVMsDetails.ReplicationHealthDetails) $($WarningVMsDetails.ReplicationHealthDetails) |" ; exit $returnStateCritical
         }
         elseif ($CriticalVMs) {
             $CriticalVMsDetails = $CriticalVMs | ForEach-Object { Measure-VMReplication -VMName $_.Name -ComputerName $ComputerName }
-            Write-Output "Hyper-V Replica Health is critical for $($CriticalVMsDetails.Name). $($CriticalVMsDetails.ReplicationHealthDetails) |" ; exit $returnStateCritical
+            Write-Output "[$VERSION] Hyper-V Replica Health is critical for $($CriticalVMsDetails.Name). $($CriticalVMsDetails.ReplicationHealthDetails) |" ; exit $returnStateCritical
         }
         elseif ($WarningVMs) {
             $WarningVMsDetails = $WarningVMs | ForEach-Object { Measure-VMReplication -VMName $_.Name -ComputerName $ComputerName }
-            Write-Output "Hyper-V Replica Health is warning for $($WarningVMsDetails.Name). $($WarningVMsDetails.ReplicationHealthDetails) |" ; exit $returnStateWarning
+            Write-Output "[$VERSION] Hyper-V Replica Health is warning for $($WarningVMsDetails.Name). $($WarningVMsDetails.ReplicationHealthDetails) |" ; exit $returnStateWarning
         }
         else {
-            Write-Output "Hyper-V Replica Health is Normal.|" ; exit $returnStateOK
+            Write-Output "[$VERSION] Hyper-V Replica Health is Normal.|" ; exit $returnStateOK
         }
     }
     else {
         # No Replication Problems Found
-        Write-Output "Hyper-V Replica Health is Normal. |" ; exit $returnStateOK
+        Write-Output "[$VERSION] Hyper-V Replica Health is Normal. |" ; exit $returnStateOK
     }
 }
 
