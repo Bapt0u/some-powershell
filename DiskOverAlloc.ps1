@@ -62,14 +62,15 @@ Begin {
 Process {
 
     # Get drives info (Mount Letter, Total Space, Used Space)
-    $ListLogicalDisk = Get-WmiObject -Namespace Root/CimV2 -Class Win32_LogicalDisk
+    $ListLogicalDisk = Get-WmiObject -Namespace Root/CimV2 -Class Win32_Volume
 
     foreach ($LogicalDisk in $ListLogicalDisk) {
         $OverAllocationInfoo = New-Object -TypeName OverAllocationInfo -Property @{
-            DriveLetter     = $LogicalDisk.DeviceID
-            DriveTotalSpace = $LogicalDisk.Size
-            DriveUsedSpace  = $LogicalDisk.Size - $LogicalDisk.FreeSpace
-            IsOverAllocated = $FALSE
+            DriveLetter          = $LogicalDisk.Name
+            Label                = $LogicalDisk.Label
+            DriveTotalSpace      = $LogicalDisk.Capacity
+            DriveUsedSpace       = $LogicalDisk.Capacity - $LogicalDisk.FreeSpace
+            IsOverAllocated      = $FALSE
             WarningOverAllocated = $FALSE
         }
         $ListOverAllocationInfo.Add($OverAllocationInfoo) | Out-Null
@@ -93,12 +94,10 @@ Process {
                         $ListOverAllocationInfo[$i].WarningOverAllocated = $TRUE
                     }
                     break
-                }
+                } 
             }
         }
     }
-
-
 }
 
 End {
