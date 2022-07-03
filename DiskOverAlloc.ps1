@@ -39,7 +39,7 @@ Param
     [int]$returnStateWarning = 1,
     [int]$returnStateCritical = 2,
     [int]$returnStateUnknown = 3,
-    $WarningThreshold = 0.8
+    $WarningThreshold = 0.5
 )
 
 Begin {
@@ -63,8 +63,6 @@ Process {
 
     # Get drives info (Mount Letter, Total Space, Used Space)
     $ListLogicalDisk = Get-WmiObject -Namespace Root/CimV2 -Class Win32_LogicalDisk
-
-    # Get-ClusterSharedVolume |Select -Property Name,SharedVolumeInfo
 
     foreach ($LogicalDisk in $ListLogicalDisk) {
         $OverAllocationInfoo = New-Object -TypeName OverAllocationInfo -Property @{
@@ -106,17 +104,17 @@ Process {
 End {
     $CriticalDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.IsOverAllocated -eq $TRUE }
     $WarningDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.WarningOverAllocated -eq $TRUE -and  $_.IsOverAllocated -ne $TRUE }
-    Write-Output -NoNewline "[$Version]"
+
     if ($CriticalDrives -and $WarningDrives ) {
-        Write-Output "Critical overallocation space disk on $($CriticalDrives.DriveLetter)"
+        Write-Output "[$Version] Critical overallocation space disk on $($CriticalDrives.DriveLetter)"
         Write-Output "Warning overallocation space disk on $($WarningDrives.DriveLetter)"
         exit $returnStateCritical
-    } 
-    if ($WarningDrives) {
+    } elseif ($CriticalDrives) {
+        Write-Output "[$Version] Critical overallocation space disk on $($CriticalDrives.DriveLetter)"
+    } elseif ($WarningDrives) {
         Write-Output "Warning overallocation space disk on $($WarningDrives.DriveLetter)"
         exit $returnStateWarning
-    }
-    if (!$WarningDrives -and !$CriticalDrives) {
+    } elseif (!$WarningDrives -and !$CriticalDrives) {
         Write-Output "Ok"
         exit $returnStateOK
     }
