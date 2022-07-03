@@ -47,6 +47,7 @@ Begin {
 
     class OverAllocationInfo {
         [System.String]$DriveLetter
+        [string]$Label
         [System.UInt64]$DriveTotalSpace
         [System.UInt64]$DriveUsedSpace
         [bool]$IsOverAllocated
@@ -65,15 +66,18 @@ Process {
     $ListLogicalDisk = Get-WmiObject -Namespace Root/CimV2 -Class Win32_Volume
 
     foreach ($LogicalDisk in $ListLogicalDisk) {
-        $OverAllocationInfoo = New-Object -TypeName OverAllocationInfo -Property @{
-            DriveLetter          = $LogicalDisk.Name
-            Label                = $LogicalDisk.Label
-            DriveTotalSpace      = $LogicalDisk.Capacity
-            DriveUsedSpace       = $LogicalDisk.Capacity - $LogicalDisk.FreeSpace
-            IsOverAllocated      = $FALSE
-            WarningOverAllocated = $FALSE
+        if ($LogicalDisk.Name -notmatch "\\\\?\\") {
+            $OverAllocationInfoo = New-Object -TypeName OverAllocationInfo -Property @{
+                DriveLetter          = $LogicalDisk.Name
+                Label                = $LogicalDisk.Label
+                DriveTotalSpace      = $LogicalDisk.Capacity
+                DriveUsedSpace       = $LogicalDisk.Capacity - $LogicalDisk.FreeSpace
+                IsOverAllocated      = $FALSE
+                WarningOverAllocated = $FALSE
+            }
+            $ListOverAllocationInfo.Add($OverAllocationInfoo) | Out-Null
+
         }
-        $ListOverAllocationInfo.Add($OverAllocationInfoo) | Out-Null
     }
 
     # Loop on all VM 
@@ -86,11 +90,29 @@ Process {
             # Then add it to the used space of the specific drive
             # and put the flag to 1 if this value is above the DriveTotalSpace
             for ($i = 0; $i -lt $ListOverAllocationInfo.Count; $i++) {
-                if ($VHDInfo.Path -match $ListOverAllocationInfo[$i].DriveLetter) {
+                if ($VHDInfo.Path -match "${$ListOverAllocationInfo[$i].DriveLetter}") {
+                    # for ($j = $i + 1; $j -lt $ListOverAllocationInfo.Count; j++ ) {
+                    #     if ($VHDInfo.Path -match "${$ListOverAllocationInfo[$j].DriveLetter}") {
+                    #         $ListOverAllocationInfo[$j].DriveUsedSpace += $VHDInfo.Size
+                    #         if ($ListOverAllocationInfo[$j].DriveUsedSpace -gt $ListOverAllocationInfo[$j].DriveTotalSpace) {
+                    #             $ListOverAllocationInfo[$j].IsOverAllocated = $TRUE
+                    #         }
+                    #         elseif ($ListOverAllocationInfo[$i].DriveUsedSpace -gt ($ListOverAllocationInfo[$i].DriveTotalSpace * $WarningThreshold)) {
+                    #             $ListOverAllocationInfo[$i].WarningOverAllocated = $TRUE
+                    #         }
+                    #         break
+                    #     }
+                    #     $Break = $TRUE
+                    # }
+                    # if ($Break){
+                    #     $Break = $FALSE
+                    #     break
+                    # }
                     $ListOverAllocationInfo[$i].DriveUsedSpace += $VHDInfo.Size
                     if ($ListOverAllocationInfo[$i].DriveUsedSpace -gt $ListOverAllocationInfo[$i].DriveTotalSpace) {
                         $ListOverAllocationInfo[$i].IsOverAllocated = $TRUE
-                    } elseif ($ListOverAllocationInfo[$i].DriveUsedSpace -gt ($ListOverAllocationInfo[$i].DriveTotalSpace*$WarningThreshold)) {
+                    }
+                    elseif ($ListOverAllocationInfo[$i].DriveUsedSpace -gt ($ListOverAllocationInfo[$i].DriveTotalSpace * $WarningThreshold)) {
                         $ListOverAllocationInfo[$i].WarningOverAllocated = $TRUE
                     }
                     break
@@ -102,19 +124,22 @@ Process {
 
 End {
     $CriticalDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.IsOverAllocated -eq $TRUE }
-    $WarningDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.WarningOverAllocated -eq $TRUE -and  $_.IsOverAllocated -ne $TRUE }
+    $WarningDrives = $ListOverAllocationInfo | Where-Object -FilterScript { $_.WarningOverAllocated -eq $TRUE -and $_.IsOverAllocated -ne $TRUE }
 
     if ($CriticalDrives -and $WarningDrives ) {
         Write-Output "[$Version] Critical overallocation space disk on $($CriticalDrives.DriveLetter)"
         Write-Output "Warning overallocation space disk on $($WarningDrives.DriveLetter)"
         exit $returnStateCritical
-    } elseif ($CriticalDrives) {
+    }
+    elseif ($CriticalDrives) {
         Write-Output "[$Version] Critical overallocation space disk on $($CriticalDrives.DriveLetter)"
-    } elseif ($WarningDrives) {
-        Write-Output "Warning overallocation space disk on $($WarningDrives.DriveLetter)"
+    }
+    elseif ($WarningDrives) {
+        Write-Output "[$Version] Warning overallocation space disk on $($WarningDrives.DriveLetter)"
         exit $returnStateWarning
-    } elseif (!$WarningDrives -and !$CriticalDrives) {
-        Write-Output "Ok"
+    }
+    elseif (!$WarningDrives -and !$CriticalDrives) {
+        Write-Output "[$Version] Ok"
         exit $returnStateOK
     }
 }
