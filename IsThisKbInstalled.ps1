@@ -4,6 +4,7 @@ Check whether this kb is installed or not.
 
 Changelog :
 - V0.1 - 26/05/22 @ Baptiste Porte
+- V1.0 - 25/07/22 @ BP, Le test de reboot ne marchant pas, il a été enlevé. 
 
 .DESCRIPTION
 Check whether this kb is installed or not.
@@ -25,36 +26,36 @@ String list of which KB you want to check
 
 PS > .\IsThisKbInstalled.ps1
 
-ServerName   KbName    KbInstalled PendingReboot InstalledDate
-----------   ------    ----------- ------------- -------------
-srv-hyperv01 KB4512578        True         False 09/07/2019 00:00:00
-srv-hyperv01 KB5013941       False         False None
+ServerName   KbName    KbInstalled  InstalledDate
+----------   ------    -----------  -------------
+srv-hyperv01 KB4512578        True  09/07/2019 00:00:00
+srv-hyperv01 KB5013941       False  None
 
 
 .EXAMPLE
 PS > .\IsThisKbInstalled.ps1 -ListServer "srv-hyperv01","srv-hyperv02","foo"
 Error on foo : NOT ACCESSIBLE.
 
-ServerName   KbName    KbInstalled PendingReboot InstalledDate
-----------   ------    ----------- ------------- -------------
-srv-hyperv01 KB4512578        True         False 09/07/2019 00:00:00
-srv-hyperv01 KB4589208       False         False None
-srv-hyperv01 KB5014022       False         False None
-srv-hyperv02 KB4512578       False         True  None
-srv-hyperv02 KB4589208        True         True  05/26/2022 00:00:00
-srv-hyperv02 KB5014022        True         True  05/26/2022 00:00:00
+ServerName   KbName    KbInstalled  InstalledDate
+----------   ------    -----------  -------------
+srv-hyperv01 KB4512578        True   09/07/2019 00:00:00
+srv-hyperv01 KB4589208       False   None
+srv-hyperv01 KB5014022       False   None
+srv-hyperv02 KB4512578       False   None
+srv-hyperv02 KB4589208        True   05/26/2022 00:00:00
+srv-hyperv02 KB5014022        True   05/26/2022 00:00:00
 
 .EXAMPLE
 PS > .\IsThisKbInstalled.ps1 -ListServer "srv-hyperv02","foo" -ListKbToCheck "KB4512578","KB7"
 Error on foo : NOT ACCESSIBLE.
 
-ServerName   KbName    KbInstalled PendingReboot InstalledDate
-----------   ------    ----------- ------------- -------------
-srv-hyperv02 KB4512578       False         False None
-srv-hyperv02 KB7             False         False None
+ServerName   KbName    KbInstalled  InstalledDate
+----------   ------    -----------  -------------
+srv-hyperv02 KB4512578       False  None
+srv-hyperv02 KB7             False  None
 
 .LINK
-Online version: http://gitlab.infocheops.local/microsoft
+None
 
 #>
 
@@ -76,92 +77,37 @@ Begin {
     # Default value if no $ListServer parameter is set
     if (!$ListServer) {
         [System.String[]]$ListServer = 
-        "server-1",
-        "server-2",
-        "test"
+        "srv-hds1-proc1",
+        "SRV-HDS1-DFS1",
+        "SRV-HDS1-DC2"
 
     }
 
     # Default value if no $ListKbToCheck parameter is set
     if (!$ListKbToCheck) {
         [System.String[]]$ListKbToCheck = 
-        "KB4512578",
-        "KB5013941"
+        "KB5014692"
     }
 
     ################################################################
     ################################################################
-
-
-    # Shamely stolen from StackOverflow 
-    # https://stackoverflow.com/questions/47867949/how-can-i-check-for-a-pending-reboot
-    function Test-PendingReboot($Server) {
-        try {
-            Invoke-Command -ComputerName $Server -ErrorAction Stop -ScriptBlock {
-                if (Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -EA Ignore) { return $TRUE }
-                if (Get-Item "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -EA Ignore) { return $TRUE }
-                if (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -EA Ignore) { return $TRUE }
-                try { 
-                    $util = [wmiclass]"\\.\root\ccm\clientsdk:CCM_ClientUtilities"
-                    $status = $util.DetermineIfRebootPending()
-                    if (($null -ne $status) -and $status.RebootPending) {
-                        return $TRUE
-                    }
-                }
-                catch { }
-            
-                return $FALSE
-            }
-        }
-        catch {
-            Write-Output "Cannot test pending reboot on $Server"
-            return $FALSE
-        }
-    }
-    # Test on local machine
-    function Test-PendingRebootLocal($Server) {
-        if (Get-ChildItem "HKLM:\Software\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending" -EA Ignore) { return $TRUE }
-        if (Get-Item "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired" -EA Ignore) { return $TRUE }
-        if (Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" -Name PendingFileRenameOperations -EA Ignore) { return $TRUE }
-        try { 
-            $util = [wmiclass]"\\.\root\ccm\clientsdk:CCM_ClientUtilities"
-            $status = $util.DetermineIfRebootPending()
-            if (($null -ne $status) -and $status.RebootPending) {
-                return $TRUE
-            }
-        }
-        catch { }
-        return $FALSE
-    }
-
 
     class KbInfo {
         [System.String]$ServerName
         [System.String]$KbName
         [Bool]$KbInstalled
-        [Bool]$PendingReboot
         [System.String]$InstalledDate
     }
 
     $ListKbInfo = New-Object System.Collections.ArrayList
-
-    [Bool]$PendingReboot = $FALSE
 
 }
 
 Process {
     # Loop on the server list
     foreach ($Server in $ListServer) {
-        if ($env:COMPUTERNAME -match $Server) {
-            $PendingReboot = Test-PendingRebootLocal($Server)
-        }
-        else {
-            $PendingReboot = Test-PendingReboot($Server)
-        }
-
         #Loop on the KB list
         for ($i = 0; $i -lt $ListKbToCheck.Count; $i++) {
-            Write-Debug "In the for here"
             try {
                 # First try with the class Win32_QuickFixEngineering
                 if ($QuickFixInfo = Get-WmiObject -Class Win32_QuickFixEngineering -Namespace root\cimv2 -ComputerName $Server -ErrorAction Stop | 
@@ -187,7 +133,6 @@ Process {
                     KbName        = $ListKbToCheck[$i]
                     KbInstalled   = $KbInstalled
                     InstalledDate = $InstalledDate
-                    PendingReboot = $PendingReboot
                 }
 
                 $ListKbInfo.Add($KbInfoo) | Out-Null
