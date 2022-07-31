@@ -10,13 +10,22 @@ param (
     [int]$returnStateOK = 0,
     [int]$returnStateWarning = 1,
     [int]$returnStateCritical = 2,
-    [int]$returnStateUnknown = 3
+    [int]$returnStateUnknown = 3,
+    [string]$clustername = (Get-Cluster).Name
 )
 
 Begin {
-
     $version = "V0.1"
-    $vmlist = Get-VM -ComputerName (Get-ClusterNode -Cluster cluster-labo)  | Select-Object -Property Name, VMName, ComputerName
+
+    # Test whether the cluster exists
+
+    $msclusterexists = Get-WmiObject -Namespace "root\MSCluster" -ClassName "MSCluster_Resource" -List -ErrorAction SilentlyContinue
+    if ($null -eq $msclusterexists) {
+        Write-Output "[$version] No cluster detected"
+        exit $returnStateOK 
+    }
+
+    $vmlist = Get-VM -ComputerName (Get-ClusterNode -Cluster $clustername)  | Select-Object -Property Name, VMName, ComputerName
     class localResourceInfo {
         [System.String]$Path
         [System.String]$ComputerName
@@ -29,14 +38,6 @@ Begin {
 
 
 Process {
-
-    # Test wheater the cluster exists
-
-    $msclusterexists = Get-WmiObject -Namespace "root\MSCluster" -ClassName "MSCluster_Resource" -List -ErrorAction SilentlyContinue
-    if ($null -eq $msclusterexists) {
-        Write-Output "[$version] No cluster detected"
-        exit $returnStateOK 
-    }
 
     foreach ($vm in $vmlist) {
         $listvminfo = Get-VM -ComputerName $vm.ComputerName -VMname $vm.Name | Select-Object -Property VMid, ComputerName
@@ -55,10 +56,10 @@ Process {
                 }
             }
 
-            $listdvdinfo = Get-VMDvdDrive -VMname $vm.name
+            $listdvdinfo = Get-VMDvdDrive -VMname $vm.name -ComputerName $vminfo.ComputerName
             # TODO: transform this foreach in function
             foreach ($dvdinfo in $listdvdinfo) {
-                if ($dvdinfo.Path -notlike "C:\ClusterStorage\*") {
+                if (($dvdinfo.Path -notlike "C:\ClusterStorage\*") -and ($null -ne $dvdinfo.Path)) {
                     $tmplistlocallesourceinfo = New-Object -TypeName localResourceInfo -Property @{
                         Path         = $dvdinfo.Path
                         ComputerName = $dvdinfo.ComputerName
