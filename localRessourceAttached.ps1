@@ -11,14 +11,13 @@ param (
     [int]$returnStateWarning = 1,
     [int]$returnStateCritical = 2,
     [int]$returnStateUnknown = 3,
-    [string]$clustername = "my-cluster-example"
+    [string]$clustername = "localhost"
 )
 
 Begin {
     $version = "V0.1"
 
     # Test whether the cluster exists
-
     $msclusterexists = Get-WmiObject -Namespace "root\MSCluster" -ClassName "MSCluster_Resource" -List -ErrorAction SilentlyContinue
     if ($null -eq $msclusterexists) {
         Write-Output "[$version] No cluster detected"
@@ -33,6 +32,7 @@ Begin {
     }
 
     $vmlist = Get-VM -ComputerName (Get-ClusterNode -Cluster $clustername)  | Select-Object -Property Name, VMName, ComputerName
+    
     class localResourceInfo {
         [System.String]$Path
         [System.String]$ComputerName
