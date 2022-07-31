@@ -93,6 +93,11 @@ End {
     $nbtotal = $listcheckpointinfo.Count
     $nbtodelete = ($listcheckpointinfo | Where-Object CreationTime -lt ((Get-Date).AddDays(-$LimitDate))).Count
 
+    if ($nbtotal -eq 0) {
+        Write-Output "[$VERSION] OK"
+        Write-Output "No checkpoint on host"
+        exit $returnStateOK
+    }
 
     if ($nbtodelete -eq 0) {
         Write-Output "[$VERSION] OK"
