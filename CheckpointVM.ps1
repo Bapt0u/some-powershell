@@ -1,36 +1,31 @@
 <#
 .SYNOPSIS
-Verifie la presence d'ancien snapshot
+Check the presence of checkpoint.
 
 .DESCRIPTION
 Verifie la presence d'ancien snapshot
 
 .PARAMETER LimiteDate
-Specifie le nombre de jour maximum  toléré pour la durée de vie d'un snapshot 
+Definies the maximum age for a checkpoint 
 
 .INPUTS
 LimiteDate
 
 .OUTPUTS
-[Collections.Generic.List[CheckpointInfo]] Retourne un tableau de données sous le format :
-
-PS > .\CheckpointVM.ps1
-
-SnapName CreationTime        AttachedVM
--------- ------------        ----------
-snap1    26/04/2022 19:14:24 srv-test02
-snap2    05/05/2022 17:39:22 srv-test02
-snap3    05/05/2022 17:39:23 srv-test02
+PS > .\CheckpointVM.ps1 -LimiteDate 4
+[V1.0] Warning
+2 snapshots are above the limit of 4 days on the following VMs:
+* vm1 (node1)
 
 .EXAMPLE
 PS C:\Users\toto\dev\some-powershell> .\CheckpointVM.ps1 -LimitDate 15
-
-SnapName CreationTime        AttachedVM
--------- ------------        ----------
-snap1    26/04/2022 19:14:24 srv-test02
+[V1.0] Warning
+2 snapshots are above the limit of 15 days on the following VMs:
+* vm1 (node1)
+* vm2 (node2)
 
 .LINK
-Online version: http://gitlab.infocheops.local/microsoft
+None
 
 #>
 
@@ -46,55 +41,78 @@ Param
 )
 
 Begin {
-    $VMList = (Get-VM).Name
+
+    # Test whether the cluster exists
+    $msclusterexists = Get-WmiObject -Namespace "root\MSCluster" -ClassName "MSCluster_Resource" -List -ErrorAction SilentlyContinue
+    if ($null -eq $msclusterexists) {
+        $vmlist = Get-VM | Select-Object -Property Name, VMName, ComputerName
+    }
+    else {
+        $clustername = (Get-Cluster).Name
+        $vmlist = Get-VM -ComputerName (Get-ClusterNode -Cluster $clustername)  | Select-Object -Property Name, VMName, ComputerName
+    }
+
 
     class CheckpointInfo {
         [System.String]$SnapName
         [System.DateTime]$CreationTime
-        [System.String]$AttachedVM;
+        [System.String]$AttachedVM
+        [System.String]$ClusterNodeName
     }
     
-    $ListCheckpointInfo = New-Object System.Collections.ArrayList
+    $listcheckpointinfo = New-Object System.Collections.ArrayList
 }
+
 Process {
     # Loop on all VM 
-    foreach ($VMName in $VMList) {
+    foreach ($vm in $vmlist) {
         # Test if there is checkpoint
-        if ($VMCheckpoint = Get-VMSnapshot -VMName $VMName) {
-            # Loop on all checkpoint on the VM 
-            for ($i = 0; $i -lt $VMCheckpoint.Count; $i++) {
+        $listvmcheckpoint = Get-VMSnapshot -VMName $vm.VMName -ComputerName $vm.ComputerName
 
-                # Test if the snapshot is older than $LimitDate days
-                if ($VMCheckpoint[$i].CreationTime -lt (Get-Date).AddDays(-$LimitDate)) {
+        # Loop on all checkpoint on the VM 
+        foreach ($vmcheckpoint in $listvmcheckpoint) {
+            # Test if the snapshot is older than $LimitDate days
+            # if ($vmcheckpoint.CreationTime -lt (Get-Date).AddDays(-$LimitDate)) {
 
-                    # Add it to the ListCheckpointinfo object
-                    $CheckpointInfo = New-Object -TypeName CheckpointInfo -Property @{
-                        SnapName     = $VMCheckpoint[$i].Name
-                        CreationTime = $VMCheckpoint[$i].CreationTime
-                        AttachedVM   = $VMName
-                    }
-    
-                    $ListCheckpointInfo.Add($CheckpointInfo) | Out-Null
-                }  
+            # Add it to the ListCheckpointinfo object
+            $checkpointinfo = New-Object -TypeName CheckpointInfo -Property @{
+                SnapName        = $vmcheckpoint.Name
+                CreationTime    = $vmcheckpoint.CreationTime
+                AttachedVM      = $vm.VMName
+                ClusterNodeName = $vm.ComputerName
             }
+    
+            $listcheckpointinfo.Add($checkpointinfo) | Out-Null
+            # }  
         }
+        
     }
 }
 
 End {
-    $nb = $ListCheckpointInfo.Count
+    $nbtotal = $listcheckpointinfo.Count
+    $nbtodelete = ($listcheckpointinfo | Where-Object CreationTime -lt ((Get-Date).AddDays(-$LimitDate))).Count
 
-    if ($nb -eq 0) {
+
+    if ($nbtodelete -eq 0) {
         Write-Output "[$VERSION] OK"
         exit $returnStateOK
-    } elseif ($nb -eq 1) {
-        Write-Output "[$VERSION] $nb snapshot is above the limit of $LimitDate days on $($ListCheckpointInfo.AttachedVM)"
+    }
+    elseif ($nbtodelete -eq 1) {
+        Write-Output "[$VERSION] Warning"
+        $myoutput = "" + $nbtodelete + " snapshot is above the limit of " + $LimitDate + " days on " + $listcheckpointinfo.AttachedVM
+        if ($msclusterexists) { $myoutput += " (" + $listcheckpointinfo.ClusterNodeName + ")" }
+        Write-Output $myoutput
         exit $returnStateCritical
 
-    }elseif ($nb -ge 2) {
-        Write-Output "[$VERSION] $nb snapshots are above the limit of $LimitDate days on the following VMs: "
-        foreach ($vm in ($ListCheckpointInfo | Select-Object -Unique -Property AttachedVM)) {
-            Write-Output $vm.AttachedVM
+    }
+    elseif ($nbtodelete -ge 2) {
+        Write-Output "[$VERSION] Warning" 
+        $myoutput = "" + $nbtodelete + " snapshots are above the limit of " + $LimitDate + " days on the following VMs: "
+        Write-Output $myoutput
+        foreach ($vm in ($listcheckpointinfo | Select-Object -Unique -Property AttachedVM, ClusterNodeName)) {
+            if ($msclusterexists) { $myoutput = "* " + $vm.AttachedVM + " (" + $vm.ClusterNodeName + ")" }else { $myoutput = $vm.AttachedVM }
+            Write-Output $myoutput
         }
         exit $returnStateCritical
     }
