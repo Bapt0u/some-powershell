@@ -11,7 +11,7 @@ param (
     [int]$returnStateWarning = 1,
     [int]$returnStateCritical = 2,
     [int]$returnStateUnknown = 3,
-    [string]$clustername = (Get-Cluster).Name
+    [string]$clustername = "my-cluster-example"
 )
 
 Begin {
@@ -23,6 +23,13 @@ Begin {
     if ($null -eq $msclusterexists) {
         Write-Output "[$version] No cluster detected"
         exit $returnStateOK 
+    }
+
+    # Test if the cluster is reachable. 
+    $getcluster = Get-Cluster -ErrorAction SilentlyContinue
+    if ($null -eq $getcluster) {
+        Write-Output "[$version] Cluster exists but seems to be unreachable. There might be a problem with your network. Make sure the cluster nodes are turned on and connected."
+        exit $returnStateUnknown 
     }
 
     $vmlist = Get-VM -ComputerName (Get-ClusterNode -Cluster $clustername)  | Select-Object -Property Name, VMName, ComputerName
@@ -81,13 +88,15 @@ End {
     }
     elseif ($total -le 1) {
         Write-Output "[$version] One local resource is attached to a VM."
-        Write-Output $listlocalresourceinfo[0].Path on $listlocalresourceinfo[0].VMName
+        $myoutput = $listlocalresourceinfo[0].Path + " on " + $listlocalresourceinfo[0].VMName
+        Write-Output $myoutput
         exit $returnStateWarning
     }
     elseif ($total -ge 2) {
         Write-Output "[$version] Multiple local resources are attached to VM."
         for ($i = 0; $i -lt $total; $i++) {
-            Write-Output $listlocalresourceinfo[$i].Path on $listlocalresourceinfo[$i].VMName
+            $myoutput = $listlocalresourceinfo[$i].Path + " on " + $listlocalresourceinfo[$i].VMName
+            Write-Output $myoutput
         }
         exit $returnStateWarning
     }
